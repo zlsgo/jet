@@ -5,19 +5,12 @@ import (
 	"net/http"
 
 	"github.com/sohaha/zlsgo/zfile"
-	"github.com/sohaha/zlsgo/zlog"
 )
 
 var (
 	empty      = struct{}{}
 	extensions = []string{".html.jet", ".jet.html", ".jet"}
 )
-
-var Log = zlog.New("jet ")
-
-func init() {
-	Log.ResetFlags(zlog.BitLevel)
-}
 
 type Delims struct {
 	Left  string

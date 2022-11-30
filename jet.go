@@ -49,7 +49,7 @@ func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 	}
 
 	if !zarray.Contains(extensions, e.options.Extension) {
-		Log.Fatalf("%s extension is not a valid jet engine ['.html.jet', .jet.html', '.jet']", e.options.Extension)
+		e.log.Fatalf("%s extension is not a valid jet engine ['.html.jet', .jet.html', '.jet']", e.options.Extension)
 	}
 
 	return e
@@ -152,7 +152,7 @@ func (e *Engine) Load() (err error) {
 		})
 
 		if err == nil && !e.loaded && e.options.Debug {
-			Log.Debugf("Loaded HTML Templates (%d): \n%s", total, tip.String())
+			e.log.Debugf("Loaded HTML Templates (%d): \n%s", total, tip.String())
 		}
 
 		e.loaded = true
