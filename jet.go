@@ -23,6 +23,7 @@ type Engine struct {
 	directory  string
 	log        *zlog.Logger
 	fileSystem http.FileSystem
+	loader     jet.Loader
 	loaded     bool
 	mutex      sync.RWMutex
 	funcmap    map[string]interface{}
@@ -70,6 +71,16 @@ func (e *Engine) AddFunc(name string, fn interface{}) *Engine {
 	return e
 }
 
+// Exists returns whether or not a template exists under the requested path
+func (e *Engine) Exists(templatePath string) bool {
+	if !e.loaded || e.options.Reload {
+		if err := e.Load(); err != nil {
+			return false
+		}
+	}
+	return e.loader.Exists(templatePath)
+}
+
 // Parse parses the templates to the engine
 func (e *Engine) Load() (err error) {
 	if e.loaded && !e.options.Reload {
@@ -79,15 +90,13 @@ func (e *Engine) Load() (err error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
-	var loader jet.Loader
-
 	if e.fileSystem != nil {
-		loader, err = httpfs.NewLoader(e.fileSystem)
+		e.loader, err = httpfs.NewLoader(e.fileSystem)
 		if err != nil {
 			return
 		}
 	} else {
-		loader = jet.NewInMemLoader()
+		e.loader = jet.NewInMemLoader()
 	}
 
 	opts := []jet.Option{jet.WithDelims(e.options.DelimLeft, e.options.DelimRight)}
@@ -98,7 +107,7 @@ func (e *Engine) Load() (err error) {
 	}
 
 	e.Templates = jet.NewSet(
-		loader,
+		e.loader,
 		opts...,
 	)
 
@@ -106,11 +115,11 @@ func (e *Engine) Load() (err error) {
 		e.Templates.AddGlobal(name, fn)
 	}
 
-	if _, ok := loader.(*jet.InMemLoader); ok {
+	if _, ok := e.loader.(*jet.InMemLoader); ok {
 		total := 0
 		tip := zstring.Buffer()
 		err = filepath.Walk(e.directory, func(path string, info os.FileInfo, err error) error {
-			l := loader.(*jet.InMemLoader)
+			l := e.loader.(*jet.InMemLoader)
 			if err != nil {
 				return err
 			}
@@ -152,7 +161,7 @@ func (e *Engine) Load() (err error) {
 		})
 
 		if err == nil && !e.loaded && e.options.Debug {
-			e.log.Debugf("Loaded HTML Templates (%d): \n%s", total, tip.String())
+			e.log.Debugf(zlog.ColorTextWrap(zlog.ColorLightGrey, "Loaded JET Templates (%d): \n%s"), total, tip.String())
 		}
 
 		e.loaded = true
@@ -202,5 +211,5 @@ func (e *Engine) Render(out io.Writer, template string, data interface{}, layout
 		})
 		return lay.Execute(out, bind, empty)
 	}
-	return tmpl.Execute(out, bind, nil)
+	return tmpl.Execute(out, bind, empty)
 }
