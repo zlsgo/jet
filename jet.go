@@ -129,12 +129,9 @@ func (e *Engine) Load() (err error) {
 			if len(e.options.Extension) >= len(path) || path[len(path)-len(e.options.Extension):] != e.options.Extension {
 				return nil
 			}
-			rel, err := filepath.Rel(e.directory, path)
-			if err != nil {
-				return err
-			}
+			rel := zfile.SafePath(path, e.directory)
 			name := strings.TrimSuffix(rel, e.options.Extension)
-
+			name = strings.Replace(name, "\\", "/", -1)
 			var buf []byte
 			if e.fileSystem != nil {
 				var file http.File
