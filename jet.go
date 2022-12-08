@@ -37,7 +37,14 @@ var _ znet.Template = &Engine{}
 func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 	e := &Engine{
 		directory: zfile.RealPath(directory),
-		funcmap:   make(map[string]interface{}),
+		funcmap: map[string]interface{}{
+			"toString": func(i interface{}) string {
+				return ztype.ToString(i)
+			},
+			"toInt": func(i interface{}) int {
+				return ztype.ToInt(i)
+			},
+		},
 	}
 
 	if r != nil {
