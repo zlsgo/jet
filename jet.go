@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/sohaha/zlsgo/zlog"
 	"github.com/sohaha/zlsgo/znet"
 	"github.com/sohaha/zlsgo/zstring"
+	"github.com/sohaha/zlsgo/ztime"
 	"github.com/sohaha/zlsgo/ztype"
 )
 
@@ -43,6 +45,17 @@ func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 			},
 			"toInt": func(i interface{}) int {
 				return ztype.ToInt(i)
+			},
+			"formatTime": func(i interface{}, format ...string) string {
+				v := ztype.ToString(i)
+				_, err := strconv.ParseFloat(v, 64)
+
+				if err == nil {
+					return ztime.FormatTimestamp(ztype.ToInt64(i), format...)
+				}
+				t, _ := ztime.Parse(v)
+
+				return ztime.FormatTime(t, format...)
 			},
 		},
 	}
