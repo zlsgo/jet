@@ -69,10 +69,6 @@ func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 		e.log.ResetFlags(zlog.BitLevel)
 	}
 
-	if !zarray.Contains(extensions, e.options.Extension) {
-		e.log.Fatalf("%s extension is not a valid jet engine ['.html.jet', .jet.html', '.jet']", e.options.Extension)
-	}
-
 	return e
 }
 
@@ -138,6 +134,7 @@ func (e *Engine) Load() (err error) {
 	if _, ok := e.loader.(*jet.InMemLoader); ok {
 		total := 0
 		tip := zstring.Buffer()
+		skip := zstring.Buffer()
 		err = filepath.Walk(e.directory, func(path string, info os.FileInfo, err error) error {
 			l := e.loader.(*jet.InMemLoader)
 			if err != nil {
@@ -146,12 +143,23 @@ func (e *Engine) Load() (err error) {
 			if info == nil || info.IsDir() {
 				return nil
 			}
-			if len(e.options.Extension) >= len(path) || path[len(path)-len(e.options.Extension):] != e.options.Extension {
+
+			ext := filepath.Ext(path)
+			if !zarray.Contains(e.options.Extensions, ext) {
 				return nil
 			}
+
 			rel := zfile.SafePath(path, e.directory)
-			name := strings.TrimSuffix(rel, e.options.Extension)
+			name := strings.TrimSuffix(rel, ext)
 			name = strings.Replace(name, "\\", "/", -1)
+
+			if l.Exists(name) {
+				if e.options.Debug {
+					skip.WriteString("\t    - " + rel + " (skip)\n")
+				}
+				return nil
+			}
+
 			var buf []byte
 			if e.fileSystem != nil {
 				var file http.File
@@ -178,7 +186,10 @@ func (e *Engine) Load() (err error) {
 		})
 
 		if err == nil && !e.loaded && e.options.Debug {
-			e.log.Debugf(zlog.ColorTextWrap(zlog.ColorLightGrey, "Loaded JET Templates (%d): \n%s"), total, tip.String())
+			e.log.Debugf(zlog.ColorTextWrap(zlog.ColorLightGrey, "Loaded Templates (%d): \n%s"), total, tip.String())
+			if skip.Len() > 0 {
+				e.log.Debugf(zlog.ColorTextWrap(zlog.ColorLightGrey, "Skipped Templates: \n%s"), skip.String())
+			}
 		}
 
 		e.loaded = true

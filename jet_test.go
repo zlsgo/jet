@@ -15,7 +15,7 @@ func TestRender(t *testing.T) {
 
 	engine := New(nil, "./testdata/views", func(o *Options) {
 		o.Debug = true
-		o.Extension = ".jet.html"
+		o.Extensions = ".jet.html"
 	})
 
 	err := engine.Load()

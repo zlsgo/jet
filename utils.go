@@ -9,7 +9,7 @@ import (
 
 var (
 	empty      = struct{}{}
-	extensions = []string{".html.jet", ".jet.html", ".jet"}
+	Extensions = []string{".jet", ".html"}
 )
 
 type Delims struct {
@@ -18,7 +18,7 @@ type Delims struct {
 }
 
 type Options struct {
-	Extension  string
+	Extensions []string
 	Layout     string
 	Debug      bool
 	Reload     bool
@@ -28,7 +28,7 @@ type Options struct {
 
 func getOption(debug bool, opt ...func(o *Options)) Options {
 	o := Options{
-		Extension:  ".jet.html",
+		Extensions: Extensions,
 		DelimLeft:  "{{",
 		DelimRight: "}}",
 		Layout:     "slot",
