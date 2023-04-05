@@ -106,7 +106,8 @@ func (e *Engine) Load() (err error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
-	if e.fileSystem != nil {
+	isMem := e.fileSystem == nil
+	if !isMem {
 		e.loader, err = httpfs.NewLoader(e.fileSystem)
 		if err != nil {
 			return
@@ -115,11 +116,10 @@ func (e *Engine) Load() (err error) {
 		e.loader = jet.NewInMemLoader()
 	}
 
-	opts := []jet.Option{jet.WithDelims(e.options.DelimLeft, e.options.DelimRight)}
+	opts := []jet.Option{jet.WithDelims(e.options.DelimLeft, e.options.DelimRight), jet.WithTemplateNameExtensions(e.options.Extensions)}
 
 	if e.options.Debug {
 		opts = append(opts, jet.InDevelopmentMode())
-
 	}
 
 	e.Templates = jet.NewSet(
@@ -131,7 +131,7 @@ func (e *Engine) Load() (err error) {
 		e.Templates.AddGlobal(name, fn)
 	}
 
-	if _, ok := e.loader.(*jet.InMemLoader); ok {
+	if isMem {
 		total := 0
 		tip := zstring.Buffer()
 		skip := zstring.Buffer()
@@ -193,7 +193,6 @@ func (e *Engine) Load() (err error) {
 		}
 
 		e.loaded = true
-
 	}
 
 	return
