@@ -151,11 +151,11 @@ func (e *Engine) Load() (err error) {
 
 			rel := zfile.SafePath(path, e.directory)
 			name := strings.TrimSuffix(rel, ext)
-			name = strings.Replace(name, "\\", "/", -1)
+			rel = strings.Replace(rel, "\\", "/", -1)
 
-			if l.Exists(name) {
+			if l.Exists(rel) {
 				if e.options.Debug {
-					skip.WriteString("\t    - " + rel + " (skip)\n")
+					skip.WriteString("\t    - " + name + " (skip)\n")
 				}
 				return nil
 			}
@@ -176,7 +176,7 @@ func (e *Engine) Load() (err error) {
 				return err
 			}
 
-			l.Set(name, string(buf))
+			l.Set(rel, zstring.Bytes2String(buf))
 			if e.options.Debug {
 				total++
 				tip.WriteString("\t    - " + name + "\n")
