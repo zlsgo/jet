@@ -43,7 +43,9 @@ func TestRender(t *testing.T) {
 func TestLayout(t *testing.T) {
 	tt := zlsgo.NewTest(t)
 
-	engine := New(nil, "./testdata/views")
+	engine := New(nil, "./testdata/views", func(o *Options) {
+		o.Extensions = []string{".jet.html"}
+	})
 
 	err := engine.Load()
 	tt.NoError(err)
@@ -60,7 +62,9 @@ func TestLayout(t *testing.T) {
 
 func TestEmptyLayout(t *testing.T) {
 	tt := zlsgo.NewTest(t)
-	engine := New(nil, "./testdata/views")
+	engine := New(nil, "./testdata/views", func(o *Options) {
+		o.Extensions = []string{".jet.html"}
+	})
 
 	var buf bytes.Buffer
 
@@ -76,6 +80,7 @@ func TestFileSystem(t *testing.T) {
 	tt := zlsgo.NewTest(t)
 	engine := NewFileSystem(nil, http.Dir(zfile.RealPath("./testdata/views")), func(o *Options) {
 		o.Debug = true
+		o.Extensions = []string{".jet.html"}
 	})
 
 	var buf bytes.Buffer
@@ -92,6 +97,7 @@ func TestReload(t *testing.T) {
 	tt := zlsgo.NewTest(t)
 	engine := NewFileSystem(nil, http.Dir("./testdata/views"), func(o *Options) {
 		o.Reload = true
+		o.Extensions = []string{".jet.html"}
 	})
 
 	err := engine.Load()

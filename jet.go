@@ -21,16 +21,16 @@ import (
 )
 
 type Engine struct {
-	directory  string
-	log        *zlog.Logger
 	fileSystem http.FileSystem
 	loader     jet.Loader
-	loaded     bool
-	mutex      sync.RWMutex
+	log        *zlog.Logger
 	funcmap    map[string]interface{}
 	Templates  *jet.Set
-	options    Options
 	watcher    *fsnotify.Watcher
+	options    Options
+	directory  string
+	mutex      sync.RWMutex
+	loaded     bool
 }
 
 var _ znet.Template = &Engine{}
@@ -70,8 +70,8 @@ func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 		e.log.ResetFlags(zlog.BitLevel)
 	}
 
+	e.options.Extensions = sortExtensions(e.options.Extensions)
 	e.watcher, _ = fsnotify.NewWatcher()
-
 	return e
 }
 

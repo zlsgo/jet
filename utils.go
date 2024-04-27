@@ -3,10 +3,9 @@ package jet
 import (
 	"io"
 	"net/http"
-	"path/filepath"
+	"sort"
 	"strings"
 
-	"github.com/sohaha/zlsgo/zarray"
 	"github.com/sohaha/zlsgo/zfile"
 )
 
@@ -21,12 +20,12 @@ type Delims struct {
 }
 
 type Options struct {
-	Extensions []string
 	Layout     string
-	Debug      bool
-	Reload     bool
 	DelimLeft  string
 	DelimRight string
+	Extensions []string
+	Debug      bool
+	Reload     bool
 }
 
 func getOption(debug bool, opt ...func(o *Options)) Options {
@@ -58,10 +57,20 @@ func ReadFile(path string, fs http.FileSystem) ([]byte, error) {
 	return zfile.ReadFile(path)
 }
 
+func sortExtensions(extensions []string) []string {
+	sort.Slice(extensions, func(i, j int) bool {
+		return strings.Count(extensions[i], ".") > strings.Count(extensions[j], ".")
+	})
+	return extensions
+}
+
 func (e *Engine) toName(path string) (name, rel string) {
-	ext := filepath.Ext(path)
-	if !zarray.Contains(e.options.Extensions, ext) {
-		return
+	var ext string
+	for i := range e.options.Extensions {
+		if strings.HasSuffix(path, e.options.Extensions[i]) {
+			ext = e.options.Extensions[i]
+			break
+		}
 	}
 
 	rel = zfile.SafePath(path, e.directory)
