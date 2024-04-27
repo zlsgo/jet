@@ -7,12 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/CloudyKit/jet/v6"
 	"github.com/CloudyKit/jet/v6/loaders/httpfs"
-	"github.com/sohaha/zlsgo/zarray"
+	"github.com/fsnotify/fsnotify"
 	"github.com/sohaha/zlsgo/zfile"
 	"github.com/sohaha/zlsgo/zlog"
 	"github.com/sohaha/zlsgo/znet"
@@ -22,15 +21,16 @@ import (
 )
 
 type Engine struct {
-	directory  string
-	log        *zlog.Logger
 	fileSystem http.FileSystem
 	loader     jet.Loader
-	loaded     bool
-	mutex      sync.RWMutex
+	log        *zlog.Logger
 	funcmap    map[string]interface{}
 	Templates  *jet.Set
+	watcher    *fsnotify.Watcher
 	options    Options
+	directory  string
+	mutex      sync.RWMutex
+	loaded     bool
 }
 
 var _ znet.Template = &Engine{}
@@ -53,6 +53,7 @@ func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 				if err == nil {
 					return ztime.FormatTimestamp(ztype.ToInt64(i), format...)
 				}
+
 				t, _ := ztime.Parse(v)
 
 				return ztime.FormatTime(t, format...)
@@ -69,6 +70,8 @@ func New(r *znet.Engine, directory string, opt ...func(o *Options)) *Engine {
 		e.log.ResetFlags(zlog.BitLevel)
 	}
 
+	e.options.Extensions = sortExtensions(e.options.Extensions)
+	e.watcher, _ = fsnotify.NewWatcher()
 	return e
 }
 
@@ -89,7 +92,7 @@ func (e *Engine) AddFunc(name string, fn interface{}) *Engine {
 
 // Exists returns whether or not a template exists under the requested path
 func (e *Engine) Exists(templatePath string) bool {
-	if !e.loaded || e.options.Reload {
+	if !e.loaded {
 		if err := e.Load(); err != nil {
 			return false
 		}
@@ -99,7 +102,7 @@ func (e *Engine) Exists(templatePath string) bool {
 
 // Parse parses the templates to the engine
 func (e *Engine) Load() (err error) {
-	if e.loaded && !e.options.Reload {
+	if e.loaded {
 		return nil
 	}
 
@@ -114,6 +117,8 @@ func (e *Engine) Load() (err error) {
 		}
 	} else {
 		e.loader = jet.NewInMemLoader()
+
+		changeHander(e)
 	}
 
 	opts := []jet.Option{jet.WithDelims(e.options.DelimLeft, e.options.DelimRight), jet.WithTemplateNameExtensions(e.options.Extensions)}
@@ -136,47 +141,36 @@ func (e *Engine) Load() (err error) {
 		tip := zstring.Buffer()
 		skip := zstring.Buffer()
 		err = filepath.Walk(e.directory, func(path string, info os.FileInfo, err error) error {
-			l := e.loader.(*jet.InMemLoader)
 			if err != nil {
 				return err
 			}
-			if info == nil || info.IsDir() {
+
+			l, ok := e.loader.(*jet.InMemLoader)
+			if !ok || info == nil {
 				return nil
 			}
 
-			ext := filepath.Ext(path)
-			if !zarray.Contains(e.options.Extensions, ext) {
+			if info.IsDir() {
+				if e.watcher != nil {
+					e.watcher.Add(path)
+				}
 				return nil
 			}
 
-			rel := zfile.SafePath(path, e.directory)
-			name := strings.TrimSuffix(rel, ext)
-			name = strings.Replace(name, "\\", "/", -1)
-
-			if l.Exists(name) {
+			name, rel := e.toName(path)
+			if l.Exists(rel) {
 				if e.options.Debug {
-					skip.WriteString("\t    - " + rel + " (skip)\n")
+					skip.WriteString("\t    - " + name + " (skip)\n")
 				}
 				return nil
 			}
 
-			var buf []byte
-			if e.fileSystem != nil {
-				var file http.File
-				file, err = e.fileSystem.Open(path)
-				if err != nil {
-					return err
-				}
-				defer file.Close()
-				buf, err = io.ReadAll(file)
-			} else {
-				buf, err = zfile.ReadFile(path)
-			}
+			buf, err := e.readFile(path)
 			if err != nil {
 				return err
 			}
 
-			l.Set(name, string(buf))
+			l.Set(rel, zstring.Bytes2String(buf))
 			if e.options.Debug {
 				total++
 				tip.WriteString("\t    - " + name + "\n")
@@ -200,7 +194,7 @@ func (e *Engine) Load() (err error) {
 
 // Execute will render the template by name
 func (e *Engine) Render(out io.Writer, template string, data interface{}, layout ...string) error {
-	if !e.loaded || e.options.Reload {
+	if !e.loaded {
 		if err := e.Load(); err != nil {
 			return err
 		}
@@ -238,5 +232,6 @@ func (e *Engine) Render(out io.Writer, template string, data interface{}, layout
 		})
 		return lay.Execute(out, bind, empty)
 	}
+
 	return tmpl.Execute(out, bind, empty)
 }
