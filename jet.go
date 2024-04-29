@@ -158,6 +158,10 @@ func (e *Engine) Load() (err error) {
 			}
 
 			name, rel := e.toName(path)
+			if name == "" {
+				return nil
+			}
+			
 			if l.Exists(rel) {
 				if e.options.Debug {
 					skip.WriteString("\t    - " + name + " (skip)\n")

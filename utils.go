@@ -73,6 +73,10 @@ func (e *Engine) toName(path string) (name, rel string) {
 		}
 	}
 
+	if ext == "" {
+		return
+	}
+
 	rel = zfile.SafePath(path, e.directory)
 	name = strings.TrimSuffix(rel, ext)
 	rel = strings.Replace(rel, "\\", "/", -1)
